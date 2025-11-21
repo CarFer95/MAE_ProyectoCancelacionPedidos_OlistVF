@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # MAE_ProyectoCancelacionPedidos_olist
 =======
 # Predicción de Cancelaciones – Olist
@@ -40,4 +40,4 @@ pip install -r requirements.txt
 
    - Modelo entrenado: `models/cancel_model.joblib`
    - Monitor mensual: `data/processed/monitor_mensual.csv`
->>>>>>> 2059b2b (Proyecto modularizado inicial)
+
