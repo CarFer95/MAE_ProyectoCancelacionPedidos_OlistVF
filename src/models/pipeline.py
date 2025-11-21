@@ -6,7 +6,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-
+###
 def create_model_pipeline(
     numeric_features: Sequence[str],
     categorical_features: Sequence[str],
