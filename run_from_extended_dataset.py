@@ -1,80 +1,61 @@
 from pathlib import Path
+import pandas as pd
 
-import joblib
-import matplotlib.pyplot as plt
-
-from src.data.load_data import load_orders_extended
-from src.features.make_features import create_features
+from src.data.build_dataset import build_orders_extended
+from src.features.select_features import prepare_xy
 from src.models.train_model import train_and_save_model
+from src.models.evaluate import compute_classification_metrics
 from src.monitoring.simulate_monthly import simular_nuevos_datos_mensuales
 
 
+def get_project_root() -> Path:
+    return Path(__file__).resolve().parent
+
+
 def main():
-    # 1) Cargar dataset extendido
-    df = load_orders_extended("data/processed/orders_extended_for_eda.csv")
+    root = get_project_root()
+    raw_dir = root / "data" / "raw"
+    processed_dir = root / "data" / "processed"
+    models_dir = root / "models"
+    models_dir.mkdir(exist_ok=True)
 
-    # 2) Features (purchase_ym, etc.)
-    df = create_features(df)
+    master_path = processed_dir / "orders_extended_master.csv"
 
-    # 3) Entrenar y guardar modelo
-    metrics = train_and_save_model(
-        df=df,
-        model_path="models/cancel_model.joblib",
-        target_col="order_canceled_extended",
-    )
-    print("\nMétricas backtest:", metrics)
+    if not master_path.exists():
+        print("⚙️  Generando orders_extended_master.csv a partir de los CSV crudos...")
+        master_path = build_orders_extended(raw_dir, processed_dir)
+    else:
+        print(f"✅ Usando master existente: {master_path}")
 
-    # 4) Cargar modelo y simular incorporación mensual
-    model_path = Path("models/cancel_model.joblib")
-    clf = joblib.load(model_path)
+    df_master = pd.read_csv(master_path, parse_dates=["order_purchase_timestamp"])
 
-    features_drop = [
-        "order_id",
-        "order_status",
-        "order_purchase_timestamp",
-        "is_canceled_strict",
-        "order_canceled_extended",
-    ]
+    X_train, y_train, X_backtest, y_backtest, X_final, y_final = prepare_xy(df_master)
 
+    model_path = models_dir / "cancel_model.joblib"
+    print("\n🚀 Entrenando modelo XGBoost final...")
+    clf = train_and_save_model(X_train, y_train, model_path, model_type="xgb")
+    print(f"Modelo guardado en: {model_path}")
+
+    print("\n📊 Métricas TRAIN:")
+    print(compute_classification_metrics(clf, X_train, y_train))
+
+    print("\n📊 Métricas BACKTEST:")
+    print(compute_classification_metrics(clf, X_backtest, y_backtest))
+
+    print("\n📊 Métricas FINAL TEST:")
+    print(compute_classification_metrics(clf, X_final, y_final))
+
+    print("\n📈 Simulación mensual y monitor...")
     monitor_mensual = simular_nuevos_datos_mensuales(
-        df_base=df,
+        df_base=df_master,
         pipeline=clf,
         target_col="order_canceled_extended",
         date_col="order_purchase_timestamp",
-        features_drop=features_drop,
-        drift_threshold=0.02,
     )
 
-    # 5) Guardar monitor mensual
-    out_path = Path("data/processed/monitor_mensual.csv")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    monitor_mensual.to_csv(out_path, index=False)
-    print(f"\nMonitor mensual guardado en: {out_path}")
-
-    # 6) Gráfico simple
-    plt.figure(figsize=(10, 5))
-    plt.plot(
-        monitor_mensual["purchase_ym"],
-        monitor_mensual["cancel_rate_real"],
-        marker="o",
-        label="Real",
-    )
-    plt.plot(
-        monitor_mensual["purchase_ym"],
-        monitor_mensual["cancel_rate_predicha"],
-        marker="s",
-        linestyle="--",
-        label="Predicha",
-    )
-    plt.xticks(rotation=45)
-    plt.ylabel("Tasa de cancelación")
-    plt.title(
-        "Simulación de incorporación mensual de nuevos datos\n"
-        "Tasa de cancelación real vs predicha"
-    )
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    monitor_path = processed_dir / "monitor_mensual.csv"
+    monitor_mensual.to_csv(monitor_path, index=False)
+    print(f"Monitor mensual guardado en: {monitor_path}")
 
 
 if __name__ == "__main__":

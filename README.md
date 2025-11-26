@@ -1,39 +1,31 @@
-# Predicción de Cancelaciones – Olist
+# Proyecto: Predicción de Cancelaciones Olist
 
-Proyecto orientado a predecir cancelaciones de pedidos (`order_canceled_extended`)
-y simular la incorporación mensual de nuevos datos, usando el dataset público de Olist.
+Pipeline modular para:
+1. Construir un dataset extendido de pedidos (`orders_extended_master.csv`).
+2. Entrenar un modelo de clasificación (XGBoost) para predecir cancelaciones.
+3. Evaluar el desempeño en train, backtest y test final.
+4. Simular el desempeño mensual del modelo (`monitor_mensual.csv`).
 
 ## Estructura
 
-- `data/raw/`: CSV originales de Olist (no se versionan).
-- `data/processed/`: datasets procesados (`orders_extended_for_eda.csv`, `monitor_mensual.csv`).
-- `src/`: módulos de datos, features, modelos y monitoreo.
-- `models/`: artefactos entrenados (`cancel_model.joblib`).
-- `notebooks/`: notebooks de exploración (EDA, pruebas).
-- `docs/`: documentación del flujo de datos y versionamiento.
+- `data/raw/`: CSV originales de Olist.
+- `data/processed/`: datasets generados.
+- `src/`: código fuente (data, features, models, monitoring).
+- `models/`: modelos entrenados.
+- `notebooks/`: notebooks de exploración.
+- `docs/`: documentación.
 
-## Requisitos
+## Ejecución
 
-```bash
-pip install -r requirements.txt
-```
-
-## Pasos para reproducir
-
-1. Descargar los CSV de Olist y copiarlos a `data/raw/`.
-2. Construir el dataset extendido:
+1. Copiar los CSV de Olist en `data/raw/`.
+2. Instalar dependencias:
 
    ```bash
-   python -m src.data.build_dataset
+   pip install -r requirements.txt
    ```
 
-3. Ejecutar el pipeline completo (entrenar + simular mensual):
+3. Ejecutar:
 
    ```bash
    python run_from_extended_dataset.py
    ```
-
-4. Revisar:
-
-   - Modelo entrenado: `models/cancel_model.joblib`
-   - Monitor mensual: `data/processed/monitor_mensual.csv`
